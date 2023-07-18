@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 
 import './GameBoard.scss';
@@ -9,11 +9,29 @@ class Node {
   #y;
   neighbors = new Set();
   #hasBomb;
+  #neighborsWithBombs;
+  #searched;
+  isShowing;
 
   constructor(x, y, hasBomb = false) {
     this.#x = x;
     this.#y = y;
+    this.#neighborsWithBombs = 0;
+    this.#searched = false;
     this.#hasBomb = hasBomb;
+    this.isShowing = false;
+  }
+
+  getSearched() {
+    return this.#searched;
+  }
+
+  setSearched(val) {
+    this.#searched = val;
+  }
+
+  getNeighborsWithBombs() {
+    return this.#neighborsWithBombs;
   }
 
   getX() {
@@ -27,12 +45,20 @@ class Node {
     this.neighbors.add(node);
   }
 
+  addNeighborWithBomb() {
+    this.#neighborsWithBombs += 1;
+  }
+
   setBomb() {
     this.#hasBomb = true;
   }
 
   isBomb() {
     return this.#hasBomb;
+  }
+
+  toString() {
+    return `${this.#x},${this.#y}`;
   }
 }
 class Board {
@@ -93,6 +119,18 @@ class Board {
           node.addNeighbor(new Node(i - 1, j - 1)); // prev row prev col
           node.addNeighbor(new Node(i - 1, j)); // prev row same col
           node.addNeighbor(new Node(i - 1, j + 1)); // prev row next col
+        } else if (firstCol) {
+          node.addNeighbor(new Node(i - 1, j));// prev row same col
+          node.addNeighbor(new Node(i - 1, j + 1));// prev row next col
+          node.addNeighbor(new Node(i, j + 1));// same row next col
+          node.addNeighbor(new Node(i + 1, j));// next row same col
+          node.addNeighbor(new Node(i + 1, j + 1));// next row prev col
+        } else if (lastCol) {
+          node.addNeighbor(new Node(i - 1, j - 1)); // prev row prev col
+          node.addNeighbor(new Node(i - 1, j)); // prev row same col
+          node.addNeighbor(new Node(i, j - 1)); // same row prev col
+          node.addNeighbor(new Node(i + 1, j - 1)); // next row prev col
+          node.addNeighbor(new Node(i + 1, j)); // next row same col
         } else {
           node.addNeighbor(new Node(i - 1, j - 1)); // prev row prev col
           node.addNeighbor(new Node(i - 1, j)); // prev row same col
@@ -108,6 +146,14 @@ class Board {
     }
   }
 
+  /**
+   *
+   * @param {Node} firstNode
+   */
+  searchNeighbors(firstNode) {
+    console.log('searching', firstNode);
+  }
+
   placeBombs() {
     // generate random x and y coords 10 times
     let i = 0;
@@ -121,6 +167,11 @@ class Board {
         const nodeString = `${bombNode.x},${bombNode.y}`;
         const placeBombHere = this.#nodes.get(nodeString);
         placeBombHere.setBomb();
+        placeBombHere.neighbors.forEach((node, key) => {
+          const neighbor = this.#nodes.get(node.toString());
+          // console.log(neighbor);
+          neighbor.addNeighborWithBomb();
+        });
       }
     } while (i < this.#totalBombs);
   }
@@ -136,7 +187,19 @@ class Board {
   }
 }
 
-function BoardNode({ node }) {
+const drawBoard = (board, search, setBoardElements, gameOver, setGameOver) => {
+  const boardElements = [];
+  const genNodeElements = (node, key) => {
+    const element = <BoardNode board={board} gameOver={gameOver} setGameOver={setGameOver} setBoardElements={setBoardElements} key={key} node={node} search={search} />;
+    boardElements.push(element);
+  };
+
+  board.getNodes().forEach(genNodeElements);
+  console.log('drawing returning');
+  return boardElements;
+};
+
+function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOver }) {
   const x = useRef(node.getX());
   const y = useRef(node.getY());
   const hasBomb = useRef(node.isBomb());
@@ -148,21 +211,35 @@ function BoardNode({ node }) {
    */
   const handleClick = (e) => {
     // check if bomb
+    const numOfBombsNear = node.getNeighborsWithBombs();
     if (node.isBomb()) {
+      buttonElement.current.textContent = '🚩';
       alert('you lose');
-      window.location.reload();
+      setGameOver(true);
     } else {
-      buttonElement.current.textContent = '!';
-      buttonElement.current.classList.add('disabled');
+      search(node);
+      // Show current count
+      if (numOfBombsNear > 0) {
+        buttonElement.current.textContent = numOfBombsNear;
+        // check neighbors and recurse
+      } else {
+        buttonElement.current.textContent = '-';
+      }
     }
-    // check neighbors and recurse
+    buttonElement.current.classList.add('disabled');
+    // eslint-disable-next-line no-param-reassign
+    node.isShowing = true;
+    setBoardElements(drawBoard(board, search, setBoardElements, gameOver, setGameOver));
   };
 
   return (
     <div className="col">
       <div className="card text-center">
         <div className="card-body">
-          <button ref={buttonElement} className="btn btn-light" type="button" onClick={handleClick}>?</button>
+          <button ref={buttonElement} className={`btn btn-light ${(node.isShowing || gameOver) && 'disabled'}`} type="button" onClick={handleClick}>
+            {/* eslint-disable-next-line no-nested-ternary */}
+            {node.isShowing ? (gameOver && node.isBomb()) ? '🚩' : node.getNeighborsWithBombs() > 0 ? node.getNeighborsWithBombs() : '-' : '?'}
+          </button>
         </div>
       </div>
     </div>
@@ -171,33 +248,65 @@ function BoardNode({ node }) {
 
 BoardNode.propTypes = {
   node: PropTypes.instanceOf(Node).isRequired,
+  search: PropTypes.func.isRequired,
 };
 
 function GameBoard() {
-  const genNodeElements = (node, key) => {
-    const element = <BoardNode key={key} node={node} />;
-    boardElements.push(element);
-  };
-
   const gameBoardSize = 10;
   const allTheBombs = 10;
+  const [gameOver, setGameOver] = useState(false);
   const [board, setBoard] = useState(new Board(gameBoardSize, allTheBombs));
-  const boardElements = [];
-  // eslint-disable-next-line react/jsx-one-expression-per-line
-  board.getNodes().forEach(genNodeElements);
+
+  const [boardElements, setBoardElements] = useState([]);
+
+  const searchForNeighbors = (firstNode, gameBoard = board) => {
+    const neighbors = [];
+    firstNode.neighbors.forEach(val => {
+      neighbors.push(board.getNodes().get(val.toString()));
+    });
+    neighbors.forEach((val, index) => {
+      if (val.isBomb() || val.getSearched()) {
+        return;
+      }
+      if (val.getNeighborsWithBombs() > 0) {
+        // eslint-disable-next-line no-param-reassign
+        val.isShowing = true;
+        return;
+      }
+      val.setSearched(true);
+      // eslint-disable-next-line no-param-reassign
+      val.isShowing = true;
+      searchForNeighbors(val);
+    });
+  };
+
+  useEffect(() => {
+    setBoardElements(drawBoard(board, searchForNeighbors, setBoardElements, gameOver, setGameOver));
+  }, [gameOver, board]);
+
+  const handleReload = () => {
+    setGameOver(false);
+    setBoard(new Board(gameBoardSize, allTheBombs));
+  };
+
   console.log(board);
   return (
     <>
       <h1>The Board</h1>
       <div className="row">
-        <p>
-          Board Size:&nbsp;
-          {gameBoardSize * gameBoardSize}
-        </p>
-        <p>
-          Number of Bombs:&nbsp;
-          {allTheBombs}
-        </p>
+        <div className="col">
+          <p>
+            Board Size:&nbsp;
+            {gameBoardSize * gameBoardSize}
+          </p>
+          <p>
+            Number of Bombs:&nbsp;
+            {allTheBombs}
+          </p>
+        </div>
+        <div className="col">
+          <button type="button" onClick={handleReload} className="btn btn-info">New Game</button>
+        </div>
       </div>
       <div className="row row-cols-10 g-2">
         {boardElements.map(ele => ele)}
