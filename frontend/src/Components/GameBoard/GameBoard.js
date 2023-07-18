@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
+import PropTypes, { node } from 'prop-types';
 
 import './GameBoard.scss';
 
@@ -74,6 +74,10 @@ class Board {
     this.generateBoard();
   }
 
+  getSize() {
+    return this.#size;
+  }
+
   getNodes() {
     return this.#nodes;
   }
@@ -86,10 +90,10 @@ class Board {
   initNodes() {
     for (let i = 0; i < this.#size; i++) {
       const firstRow = i === 0;
-      const lastRow = i === 9;
+      const lastRow = i === this.#size - 1;
       for (let j = 0; j < this.#size; j++) {
         const firstCol = j === 0;
-        const lastCol = j === 9;
+        const lastCol = j === this.#size - 1;
         const node = new Node(i, j);
         if (firstRow && firstCol) {
           node.addNeighbor(new Node(i + 1, j));
@@ -180,23 +184,40 @@ class Board {
     let x = 0;
     let y = 0;
 
-    x = Math.round(Math.random() * 9);
-    y = Math.round(Math.random() * 9);
+    x = Math.round(Math.random() * (this.#size - 1));
+    y = Math.round(Math.random() * (this.#size - 1));
 
     return { x, y };
   }
 }
 
 const drawBoard = (board, search, setBoardElements, gameOver, setGameOver) => {
-  const boardElements = [];
-  const genNodeElements = (node, key) => {
-    const element = <BoardNode board={board} gameOver={gameOver} setGameOver={setGameOver} setBoardElements={setBoardElements} key={key} node={node} search={search} />;
-    boardElements.push(element);
-  };
+  const numOfRows = board.getSize();
+  console.log(numOfRows);
+  const rows = [];
 
-  board.getNodes().forEach(genNodeElements);
-  console.log('drawing returning');
-  return boardElements;
+  const genNodeElement = (node, key) => (
+    <BoardNode
+      board={board}
+      gameOver={gameOver}
+      setGameOver={setGameOver}
+      setBoardElements={setBoardElements}
+      key={key}
+      node={node}
+      search={search}
+    />
+  );
+
+  for (let i = 0; i < numOfRows; i++) {
+    const boardElements = [];
+    for (let j = 0; j < numOfRows; j++) {
+      const nodeAccess = `${i},${j}`;
+      boardElements.push(genNodeElement(board.getNodes().get(nodeAccess), nodeAccess));
+    }
+    console.log('drawing returning');
+    rows[i] = boardElements;
+  }
+  return rows;
 };
 
 function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOver }) {
@@ -252,10 +273,12 @@ BoardNode.propTypes = {
 };
 
 function GameBoard() {
-  const gameBoardSize = 10;
-  const allTheBombs = 10;
+  const gameBoardSize = useRef(10);
+  const allTheBombs = useRef(10);
   const [gameOver, setGameOver] = useState(false);
-  const [board, setBoard] = useState(new Board(gameBoardSize, allTheBombs));
+  const [board, setBoard] = useState(new Board(gameBoardSize.current, allTheBombs.current));
+  const boardSizeElement = useRef(null);
+  const bombsElement = useRef(null);
 
   const [boardElements, setBoardElements] = useState([]);
 
@@ -281,12 +304,26 @@ function GameBoard() {
   };
 
   useEffect(() => {
+    boardSizeElement.current.value = gameBoardSize.current;
+    bombsElement.current.value = allTheBombs.current;
     setBoardElements(drawBoard(board, searchForNeighbors, setBoardElements, gameOver, setGameOver));
   }, [gameOver, board]);
 
   const handleReload = () => {
-    setGameOver(false);
-    setBoard(new Board(gameBoardSize, allTheBombs));
+    if (parseInt(bombsElement.current.value, 10) && parseInt(boardSizeElement.current.value, 10)) {
+      gameBoardSize.current = boardSizeElement.current.value;
+      allTheBombs.current = bombsElement.current.value;
+      setGameOver(false);
+      setBoard(new Board(boardSizeElement.current.value, bombsElement.current.value));
+    }
+  };
+
+  const drawBoardElements = () => {
+    const numOfRows = boardSizeElement.current.value;
+    const rows = [];
+    for (let i = 0; i < numOfRows; i++) {
+      rows.push();
+    }
   };
 
   console.log(board);
@@ -296,20 +333,22 @@ function GameBoard() {
       <div className="row">
         <div className="col">
           <p>
-            Board Size:&nbsp;
-            {gameBoardSize * gameBoardSize}
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+            <label htmlFor="boardSize" className="form-label">Board Size </label>
+            <input type="text" id="boardSize" name="boardSize" className="form-control" ref={boardSizeElement} />
           </p>
           <p>
-            Number of Bombs:&nbsp;
-            {allTheBombs}
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+            <label htmlFor="boardSize" className="form-label">Number of Bombs</label>
+            <input type="text" id="numOfBombs" name="numOfBombs" className="form-control" ref={bombsElement} />
           </p>
         </div>
         <div className="col">
           <button type="button" onClick={handleReload} className="btn btn-info">New Game</button>
         </div>
       </div>
-      <div className="row row-cols-10 g-2">
-        {boardElements.map(ele => ele)}
+      <div className="row">
+        {boardElements.map(row => (<div className="row mb-2">{row.map(ele => ele)}</div>))}
       </div>
     </>
   );

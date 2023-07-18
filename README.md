@@ -35,16 +35,16 @@ The last rule winds up uncovering large areas of the board in one turn. This hel
 
 ## Level 1
 
-1. [ ] Establish a react front-end minesweeper game board with in-memory game data.
-2. [ ] Establish basic game logic that enforces the above game rules on a 10x10 board.
-   1. [ ] Each cell is an object that stores pertinent information for that cell (ie. wasClicked, isBomb, adjacentBombCount...)
-   2. [ ] One way to store these values to keep track of position is an [adjacency matrix](https://en.wikipedia.org/wiki/Adjacency_matrix#:~:text=In%20graph%20theory%20and%20computer,with%20zeros%20on%20its%20diagonal).
-   3. [ ] One could also have a property pointing to adjacent cells directly on the cell object.
-   4. [ ] If you are stuck on the game logic, be sure to ask for assistance. You should not be struggling for too long on this section.
+1. [x] Establish a react front-end minesweeper game board with in-memory game data.
+2. [x] Establish basic game logic that enforces the above game rules on a 10x10 board.
+   1. [x] Each cell is an object that stores pertinent information for that cell (ie. wasClicked, isBomb, adjacentBombCount...)
+   2. [x] One way to store these values to keep track of position is an [adjacency matrix](https://en.wikipedia.org/wiki/Adjacency_matrix#:~:text=In%20graph%20theory%20and%20computer,with%20zeros%20on%20its%20diagonal).
+   3. [x] One could also have a property pointing to adjacent cells directly on the cell object.
+   4. [x] If you are stuck on the game logic, be sure to ask for assistance. You should not be struggling for too long on this section.
 
 ## Level 2
 
-1. [ ] Add the ability to change the difficulty (size of the board and quantity of mines).
+1. [x] Add the ability to change the difficulty (size of the board and quantity of mines).
 2. [ ] Add a timer to the game.
 3. [ ] View a list of recently played user times and difficulty setting.
 
