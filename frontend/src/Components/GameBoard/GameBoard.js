@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import PropTypes, { node } from 'prop-types';
 
 import './GameBoard.scss';
+import { getActiveElement } from '@testing-library/user-event/dist/utils';
 
 /* eslint quote-props: 0 */
 class Node {
@@ -191,7 +192,7 @@ class Board {
   }
 }
 
-const drawBoard = (board, search, setBoardElements, gameOver, setGameOver) => {
+const drawBoard = (board, search, setBoardElements, gameOver, setGameOver, setStopTimer) => {
   const numOfRows = board.getSize();
   console.log(numOfRows);
   const rows = [];
@@ -205,6 +206,7 @@ const drawBoard = (board, search, setBoardElements, gameOver, setGameOver) => {
       key={key}
       node={node}
       search={search}
+      setStopTimer={setStopTimer}
     />
   );
 
@@ -220,7 +222,7 @@ const drawBoard = (board, search, setBoardElements, gameOver, setGameOver) => {
   return rows;
 };
 
-function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOver }) {
+function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOver, setStopTimer }) {
   const x = useRef(node.getX());
   const y = useRef(node.getY());
   const hasBomb = useRef(node.isBomb());
@@ -237,6 +239,7 @@ function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOve
       buttonElement.current.textContent = '🚩';
       alert('you lose');
       setGameOver(true);
+      setStopTimer(timer => timer + 1);
     } else {
       search(node);
       // Show current count
@@ -250,7 +253,7 @@ function BoardNode({ node, search, board, setBoardElements, gameOver, setGameOve
     buttonElement.current.classList.add('disabled');
     // eslint-disable-next-line no-param-reassign
     node.isShowing = true;
-    setBoardElements(drawBoard(board, search, setBoardElements, gameOver, setGameOver));
+    setBoardElements(drawBoard(board, search, setBoardElements, gameOver, setGameOver, setStopTimer));
   };
 
   return (
@@ -279,6 +282,8 @@ function GameBoard() {
   const [board, setBoard] = useState(new Board(gameBoardSize.current, allTheBombs.current));
   const boardSizeElement = useRef(null);
   const bombsElement = useRef(null);
+  const [resetTimer, setResetTimer] = useState(0);
+  const [stopTimer, setStopTimer] = useState(0);
 
   const [boardElements, setBoardElements] = useState([]);
 
@@ -306,7 +311,7 @@ function GameBoard() {
   useEffect(() => {
     boardSizeElement.current.value = gameBoardSize.current;
     bombsElement.current.value = allTheBombs.current;
-    setBoardElements(drawBoard(board, searchForNeighbors, setBoardElements, gameOver, setGameOver));
+    setBoardElements(drawBoard(board, searchForNeighbors, setBoardElements, gameOver, setGameOver, setStopTimer));
   }, [gameOver, board]);
 
   const handleReload = () => {
@@ -314,6 +319,7 @@ function GameBoard() {
       gameBoardSize.current = boardSizeElement.current.value;
       allTheBombs.current = bombsElement.current.value;
       setGameOver(false);
+      setResetTimer((timer) => timer + 1);
       setBoard(new Board(boardSizeElement.current.value, bombsElement.current.value));
     }
   };
@@ -344,13 +350,77 @@ function GameBoard() {
           </p>
         </div>
         <div className="col">
-          <button type="button" onClick={handleReload} className="btn btn-info">New Game</button>
+          <div className="row">
+            <button type="button" onClick={handleReload} className="btn btn-info">New Game</button>
+          </div>
+          <div className="row pt-4">
+            <Timer resetTimer={resetTimer} stopTimer={stopTimer} />
+          </div>
         </div>
       </div>
       <div className="row">
         {boardElements.map(row => (<div className="row mb-2">{row.map(ele => ele)}</div>))}
       </div>
     </>
+  );
+}
+
+function Timer({ resetTimer, stopTimer }) {
+  const [isActive, setIsActive] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [time, setTime] = useState(0);
+
+  React.useEffect(() => {
+    let interval = null;
+
+    if (isActive && isPaused === false) {
+      interval = setInterval(() => {
+        setTime((timer) => timer + 10);
+      }, 10);
+    } else {
+      clearInterval(interval);
+    }
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isActive, isPaused]);
+
+  useEffect(() => {
+    handleReset();
+  }, [resetTimer]);
+
+  useEffect(() => {
+    if (stopTimer > 0) {
+      setIsPaused(true);
+    }
+  }, [stopTimer]);
+
+  const handleStart = () => {
+    setIsActive(true);
+    setIsPaused(false);
+  };
+
+  const handlePauseResume = () => {
+    setIsPaused(!isPaused);
+  };
+
+  const handleReset = () => {
+    setIsActive(true);
+    setIsPaused(false);
+    setTime(0);
+  };
+
+  return (
+    <h4>
+      Timer: &nbsp;
+      <span>
+        {(`0${Math.floor((time / 60000) % 60)}`).slice(-2)}
+        :
+      </span>
+      <span>
+        {(`0${Math.floor((time / 1000) % 60)}`).slice(-2)}
+      </span>
+    </h4>
   );
 }
 
